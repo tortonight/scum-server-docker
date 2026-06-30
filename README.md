@@ -17,15 +17,15 @@ This project follows the same overall pattern as the reference repo at <https://
 1. Open this folder.
 2. Build and start the container:
 
-   ```bash
+```bash
    docker compose up -d --build
-   ```
+```
 
 3. Watch the first install:
 
-   ```bash
+```bash
    docker compose logs -f
-   ```
+```
 
 The first run can take a while because the container may need to install SteamCMD, update itself, and download the full SCUM dedicated server.
 
@@ -45,6 +45,7 @@ The first run can take a while because the container may need to install SteamCM
 | `ADDITIONALFLAGS` | empty | Extra command-line flags, for example `-nobattleye`. |
 | `GAME_UPDATE` | `true` | `true` updates SCUM with SteamCMD during startup; `false` reuses existing files in `/opt/scumserver`. |
 | `RESTART_SCHEDULE` | `4,10,16,22` | Comma-separated 24-hour values. The container sends a graceful restart at each listed hour. Leave empty to disable. |
+| `UPDATE_MIN_INTERVAL_MINUTES` | `30` | Minimum minutes between successful SCUM update attempts when `GAME_UPDATE=true`. Prevents update loops if the container restarts repeatedly. Set `0` to always try. |
 | `MEMORY_THRESHOLD_PERCENT` | `95` | If system memory usage reaches this percentage, the watchdog triggers a graceful restart. Set `0` to disable. |
 | `MEMORY_CHECK_INTERVAL` | `60` | Seconds between watchdog checks. |
 | `MEMORY_WATCHDOG_DEBUG` | `false` | When `true`, logs each watchdog reading. |
@@ -74,6 +75,7 @@ If you change `GAMEPORT` or `QUERYPORT`, update the published ports in `docker-c
 - SteamCMD is installed automatically if it is missing.
 - SteamCMD is self-updated on every container start.
 - If `GAME_UPDATE=false`, the script skips the SCUM download/update step and uses the existing files already stored in `./scumserver-data`.
+- If `GAME_UPDATE=true`, failed SteamCMD update attempts now fall back to existing server files (if present) instead of forcing a startup crash loop.
 - Scheduled restarts happen inside the container without needing host cron jobs.
 - Low-memory protection attempts a graceful restart before the process crashes hard.
 

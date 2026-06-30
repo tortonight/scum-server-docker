@@ -17,6 +17,8 @@ RESTART_SCHEDULE="${RESTART_SCHEDULE:-4,10,16,22}"
 MEMORY_THRESHOLD_PERCENT="${MEMORY_THRESHOLD_PERCENT:-95}"
 MEMORY_CHECK_INTERVAL="${MEMORY_CHECK_INTERVAL:-60}"
 MEMORY_WATCHDOG_DEBUG="${MEMORY_WATCHDOG_DEBUG:-false}"
+UPDATE_MIN_INTERVAL_MINUTES="${UPDATE_MIN_INTERVAL_MINUTES:-30}"
+UPDATE_MARKER_FILE="${SCUM_DIR}/.last_successful_update"
 
 WRAPPER_PID=""
 SCUM_PID=""
@@ -131,7 +133,7 @@ run_steamcmd() {
 }
 
 update_server_files() {
-    local update_enabled
+    local update_enabled now last_update update_age_minutes
     update_enabled="$(normalize_boolean "${GAME_UPDATE}")"
 
     log "Updating SteamCMD..."
@@ -147,13 +149,41 @@ update_server_files() {
         return
     fi
 
+    if [[ ! "${UPDATE_MIN_INTERVAL_MINUTES}" =~ ^[0-9]+$ ]]; then
+        log "ERROR: UPDATE_MIN_INTERVAL_MINUTES must be an integer."
+        exit 1
+    fi
+
+    if [[ -f "${UPDATE_MARKER_FILE}" ]] && (( UPDATE_MIN_INTERVAL_MINUTES > 0 )); then
+        now="$(date +%s)"
+        last_update="$(stat -c '%Y' "${UPDATE_MARKER_FILE}" 2>/dev/null || echo 0)"
+        if (( last_update > 0 )); then
+            update_age_minutes="$(((now - last_update) / 60))"
+            if (( update_age_minutes < UPDATE_MIN_INTERVAL_MINUTES )); then
+                log "Skipping SCUM update; last successful update was ${update_age_minutes} minute(s) ago (min interval: ${UPDATE_MIN_INTERVAL_MINUTES})."
+                return
+            fi
+        fi
+    fi
+
     log "Installing or updating SCUM dedicated server..."
-    run_steamcmd \
+    if run_steamcmd \
         +@sSteamCmdForcePlatformType windows \
         +force_install_dir "${SCUM_DIR}" \
         +login anonymous \
         +app_update "${APP_ID}" validate \
-        +quit
+        +quit; then
+        touch "${UPDATE_MARKER_FILE}"
+        return
+    fi
+
+    if [[ -f "${SERVER_EXE}" ]]; then
+        log "WARNING: SCUM update failed; continuing with existing server files."
+        return
+    fi
+
+    log "ERROR: SCUM update failed and no existing server files were found."
+    exit 1
 }
 
 discover_scum_pid() {
@@ -319,9 +349,7 @@ main() {
         start_schedule_watcher
 
         local exit_code=0
-        if ! wait "${WRAPPER_PID}"; then
-            exit_code=$?
-        fi
+        wait "${WRAPPER_PID}" || exit_code=$?
         cleanup_children
 
         if (( EXIT_REQUESTED == 1 )); then

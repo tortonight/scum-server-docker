@@ -10,6 +10,7 @@ services:
       ADDITIONALFLAGS: ""
       GAME_UPDATE: "true"
       RESTART_SCHEDULE: "4,10,16,22"
+      UPDATE_MIN_INTERVAL_MINUTES: "30"
       MEMORY_THRESHOLD_PERCENT: "95"
       MEMORY_CHECK_INTERVAL: "60"
       MEMORY_WATCHDOG_DEBUG: "false"
@@ -26,4 +27,3 @@ services:
       - ./scumserver-data:/opt/scumserver
       - ./steamcmd:/opt/steamcmd
     restart: unless-stopped
-
