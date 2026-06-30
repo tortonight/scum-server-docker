@@ -143,7 +143,7 @@ wine_healthcheck() {
 }
 
 ensure_wine_prefix_healthy() {
-    local init_status=0
+    local init_status=0 elapsed=0 init_pid=""
 
     if wine_healthcheck; then
         return
@@ -153,9 +153,18 @@ ensure_wine_prefix_healthy() {
     rm -rf "${WINEPREFIX}"
     install -d -m 0755 "${WINEPREFIX}"
 
-    init_status=0
+    log "Rebuilding Wine prefix. This can take up to ${WINE_INIT_TIMEOUT_SECONDS}s."
     timeout "${WINE_INIT_TIMEOUT_SECONDS}" \
-        xvfb-run --auto-servernum wineboot --init >/dev/null 2>&1 || init_status=$?
+        xvfb-run --auto-servernum wineboot --init >/dev/null 2>&1 &
+    init_pid=$!
+
+    while kill -0 "${init_pid}" 2>/dev/null; do
+        sleep 15
+        elapsed=$((elapsed + 15))
+        log "Wine prefix rebuild in progress (${elapsed}s elapsed)."
+    done
+
+    wait "${init_pid}" || init_status=$?
 
     if [[ "${init_status}" -ne 0 ]] && [[ "${init_status}" -ne 124 ]]; then
         log "ERROR: wineboot failed while rebuilding prefix (exit ${init_status})."
