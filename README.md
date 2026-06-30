@@ -46,6 +46,9 @@ The first run can take a while because the container may need to install SteamCM
 | `GAME_UPDATE` | `true` | `true` updates SCUM with SteamCMD during startup; `false` reuses existing files in `/opt/scumserver`. |
 | `RESTART_SCHEDULE` | `4,10,16,22` | Comma-separated 24-hour values. The container sends a graceful restart at each listed hour. Leave empty to disable. |
 | `UPDATE_MIN_INTERVAL_MINUTES` | `30` | Minimum minutes between successful SCUM update attempts when `GAME_UPDATE=true`. Prevents update loops if the container restarts repeatedly. Set `0` to always try. |
+| `AUTO_RESTART_ON_CRASH` | `true` | If the game process exits unexpectedly, restart SCUM inside the same container instead of exiting immediately. |
+| `CRASH_RESTART_DELAY_SECONDS` | `15` | Delay before each crash-restart attempt when `AUTO_RESTART_ON_CRASH=true`. |
+| `MAX_CRASH_RESTARTS` | `0` | Max consecutive crash restarts before container exits (`0` = unlimited). |
 | `MEMORY_THRESHOLD_PERCENT` | `95` | If system memory usage reaches this percentage, the watchdog triggers a graceful restart. Set `0` to disable. |
 | `MEMORY_CHECK_INTERVAL` | `60` | Seconds between watchdog checks. |
 | `MEMORY_WATCHDOG_DEBUG` | `false` | When `true`, logs each watchdog reading. |
@@ -76,6 +79,7 @@ If you change `GAMEPORT` or `QUERYPORT`, update the published ports in `docker-c
 - SteamCMD is self-updated on every container start.
 - If `GAME_UPDATE=false`, the script skips the SCUM download/update step and uses the existing files already stored in `./scumserver-data`.
 - If `GAME_UPDATE=true`, failed SteamCMD update attempts now fall back to existing server files (if present) instead of forcing a startup crash loop.
+- Crash restarts now happen inside the same container by default, which avoids rerunning SteamCMD on every game crash.
 - Scheduled restarts happen inside the container without needing host cron jobs.
 - Low-memory protection attempts a graceful restart before the process crashes hard.
 

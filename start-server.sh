@@ -19,6 +19,9 @@ MEMORY_CHECK_INTERVAL="${MEMORY_CHECK_INTERVAL:-60}"
 MEMORY_WATCHDOG_DEBUG="${MEMORY_WATCHDOG_DEBUG:-false}"
 UPDATE_MIN_INTERVAL_MINUTES="${UPDATE_MIN_INTERVAL_MINUTES:-30}"
 UPDATE_MARKER_FILE="${SCUM_DIR}/.last_successful_update"
+AUTO_RESTART_ON_CRASH="${AUTO_RESTART_ON_CRASH:-true}"
+CRASH_RESTART_DELAY_SECONDS="${CRASH_RESTART_DELAY_SECONDS:-15}"
+MAX_CRASH_RESTARTS="${MAX_CRASH_RESTARTS:-0}"
 
 WRAPPER_PID=""
 SCUM_PID=""
@@ -326,12 +329,27 @@ start_server() {
 }
 
 main() {
+    local auto_restart_on_crash crash_restart_count
+
     print_banner
 
     if [[ -n "${PORT:-}" ]]; then
         log "PORT is deprecated; copying its value into GAMEPORT."
         GAMEPORT="${PORT}"
     fi
+
+    if [[ ! "${CRASH_RESTART_DELAY_SECONDS}" =~ ^[0-9]+$ ]]; then
+        log "ERROR: CRASH_RESTART_DELAY_SECONDS must be an integer."
+        exit 1
+    fi
+
+    if [[ ! "${MAX_CRASH_RESTARTS}" =~ ^[0-9]+$ ]]; then
+        log "ERROR: MAX_CRASH_RESTARTS must be an integer."
+        exit 1
+    fi
+
+    auto_restart_on_crash="$(normalize_boolean "${AUTO_RESTART_ON_CRASH}")"
+    crash_restart_count=0
 
     trap handle_exit_signal TERM INT
     trap handle_restart_signal USR1
@@ -359,10 +377,24 @@ main() {
 
         if (( RESTART_REQUESTED == 1 )); then
             log "Restarting SCUM dedicated server."
+            crash_restart_count=0
             continue
         fi
 
-        log "SCUM dedicated server exited with code ${exit_code}."
+        if [[ "${auto_restart_on_crash}" == "true" ]]; then
+            crash_restart_count=$((crash_restart_count + 1))
+
+            if (( MAX_CRASH_RESTARTS > 0 )) && (( crash_restart_count > MAX_CRASH_RESTARTS )); then
+                log "SCUM dedicated server crashed too many times (${crash_restart_count}). Stopping container."
+                exit "${exit_code}"
+            fi
+
+            log "SCUM dedicated server exited with code ${exit_code}; restarting in ${CRASH_RESTART_DELAY_SECONDS}s (attempt ${crash_restart_count})."
+            sleep "${CRASH_RESTART_DELAY_SECONDS}"
+            continue
+        fi
+
+        log "SCUM dedicated server exited with code ${exit_code}; auto restart disabled."
         exit "${exit_code}"
     done
 }
