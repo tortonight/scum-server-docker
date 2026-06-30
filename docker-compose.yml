@@ -1,0 +1,31 @@
+services:
+  scum-server:
+    build:
+      context: .
+    image: scum-dedicated-server:local
+    container_name: scum-server
+    stop_grace_period: 70s
+    environment:
+      GAMEPORT: "7777"
+      QUERYPORT: "27015"
+      MAXPLAYERS: "32"
+      ADDITIONALFLAGS: ""
+      GAME_UPDATE: "true"
+      RESTART_SCHEDULE: "4,10,16,22"
+      MEMORY_THRESHOLD_PERCENT: "95"
+      MEMORY_CHECK_INTERVAL: "60"
+      MEMORY_WATCHDOG_DEBUG: "false"
+    ports:
+      - "7777:7777/udp"
+      - "7777:7777/tcp"
+      - "7778:7778/udp"
+      - "7778:7778/tcp"
+      - "7779:7779/udp"
+      - "7779:7779/tcp"
+      - "27015:27015/udp"
+      - "27015:27015/tcp"
+    volumes:
+      - ./scumserver-data:/opt/scumserver
+      - ./steamcmd:/opt/steamcmd
+    restart: unless-stopped
+
