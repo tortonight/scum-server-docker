@@ -76,3 +76,7 @@ If you change `GAMEPORT` or `QUERYPORT`, update the published ports in `docker-c
 - If `GAME_UPDATE=false`, the script skips the SCUM download/update step and uses the existing files already stored in `./scumserver-data`.
 - Scheduled restarts happen inside the container without needing host cron jobs.
 - Low-memory protection attempts a graceful restart before the process crashes hard.
+
+## Credits
+
+- Base project inspiration and original Dockerized SCUM server approach: [EvilOlaf/scum](https://github.com/EvilOlaf/scum)
