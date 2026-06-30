@@ -138,8 +138,7 @@ run_steamcmd() {
 }
 
 wine_healthcheck() {
-    timeout "${WINE_HEALTHCHECK_TIMEOUT_SECONDS}" \
-        xvfb-run --auto-servernum wine cmd /c exit >/dev/null 2>&1
+    timeout "${WINE_HEALTHCHECK_TIMEOUT_SECONDS}" wine cmd /c exit >/dev/null 2>&1
 }
 
 ensure_wine_prefix_healthy() {
@@ -154,8 +153,7 @@ ensure_wine_prefix_healthy() {
     install -d -m 0755 "${WINEPREFIX}"
 
     log "Rebuilding Wine prefix. This can take up to ${WINE_INIT_TIMEOUT_SECONDS}s."
-    timeout "${WINE_INIT_TIMEOUT_SECONDS}" \
-        xvfb-run --auto-servernum wineboot --init >/dev/null 2>&1 &
+    timeout "${WINE_INIT_TIMEOUT_SECONDS}" wineboot --init >/dev/null 2>&1 &
     init_pid=$!
 
     while kill -0 "${init_pid}" 2>/dev/null; do
@@ -353,13 +351,12 @@ start_server() {
     log "Starting SCUM dedicated server..."
 
     # shellcheck disable=SC2086
-    xvfb-run --auto-servernum --server-args="-screen 0 1024x768x24" \
-        wine "${SERVER_EXE}" \
-            -log \
-            -port="${GAMEPORT}" \
-            -QueryPort="${QUERYPORT}" \
-            -MaxPlayers="${MAXPLAYERS}" \
-            ${ADDITIONALFLAGS} &
+    wine "${SERVER_EXE}" \
+        -log \
+        -port="${GAMEPORT}" \
+        -QueryPort="${QUERYPORT}" \
+        -MaxPlayers="${MAXPLAYERS}" \
+        ${ADDITIONALFLAGS} &
 
     WRAPPER_PID=$!
     log "Server wrapper PID: ${WRAPPER_PID}"

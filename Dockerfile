@@ -47,11 +47,7 @@ RUN install -d -m 0755 /etc/apt/keyrings \
         winehq-stable=11.0.0.0~trixie-1 \
     && rm -rf /var/lib/apt/lists/*
 
-RUN install -d -m 0755 /opt/steamcmd /opt/scumserver \
-    && status=0 \
-    && timeout 90s xvfb-run --auto-servernum wineboot --init || status=$? \
-    && if [ "${status}" -ne 0 ] && [ "${status}" -ne 124 ]; then exit "${status}"; fi \
-    && test -f "${WINEPREFIX}/system.reg"
+RUN install -d -m 0755 /opt/steamcmd /opt/scumserver
 
 COPY start-server.sh /usr/local/bin/start-server.sh
 
