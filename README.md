@@ -49,6 +49,8 @@ The first run can take a while because the container may need to install SteamCM
 | `AUTO_RESTART_ON_CRASH` | `true` | If the game process exits unexpectedly, restart SCUM inside the same container instead of exiting immediately. |
 | `CRASH_RESTART_DELAY_SECONDS` | `15` | Delay before each crash-restart attempt when `AUTO_RESTART_ON_CRASH=true`. |
 | `MAX_CRASH_RESTARTS` | `0` | Max consecutive crash restarts before container exits (`0` = unlimited). |
+| `WINE_HEALTHCHECK_TIMEOUT_SECONDS` | `25` | Timeout for the pre-start Wine health check command. |
+| `WINE_INIT_TIMEOUT_SECONDS` | `240` | Timeout for automatic Wine prefix rebuild when health check fails. |
 | `MEMORY_THRESHOLD_PERCENT` | `95` | If system memory usage reaches this percentage, the watchdog triggers a graceful restart. Set `0` to disable. |
 | `MEMORY_CHECK_INTERVAL` | `60` | Seconds between watchdog checks. |
 | `MEMORY_WATCHDOG_DEBUG` | `false` | When `true`, logs each watchdog reading. |
@@ -80,6 +82,7 @@ If you change `GAMEPORT` or `QUERYPORT`, update the published ports in `docker-c
 - If `GAME_UPDATE=false`, the script skips the SCUM download/update step and uses the existing files already stored in `./scumserver-data`.
 - If `GAME_UPDATE=true`, failed SteamCMD update attempts now fall back to existing server files (if present) instead of forcing a startup crash loop.
 - Crash restarts now happen inside the same container by default, which avoids rerunning SteamCMD on every game crash.
+- On startup, the script now checks Wine health and automatically rebuilds the Wine prefix if it detects `kernel32.dll` load errors.
 - Scheduled restarts happen inside the container without needing host cron jobs.
 - Low-memory protection attempts a graceful restart before the process crashes hard.
 

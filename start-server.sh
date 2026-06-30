@@ -22,6 +22,8 @@ UPDATE_MARKER_FILE="${SCUM_DIR}/.last_successful_update"
 AUTO_RESTART_ON_CRASH="${AUTO_RESTART_ON_CRASH:-true}"
 CRASH_RESTART_DELAY_SECONDS="${CRASH_RESTART_DELAY_SECONDS:-15}"
 MAX_CRASH_RESTARTS="${MAX_CRASH_RESTARTS:-0}"
+WINE_HEALTHCHECK_TIMEOUT_SECONDS="${WINE_HEALTHCHECK_TIMEOUT_SECONDS:-25}"
+WINE_INIT_TIMEOUT_SECONDS="${WINE_INIT_TIMEOUT_SECONDS:-240}"
 
 WRAPPER_PID=""
 SCUM_PID=""
@@ -133,6 +135,39 @@ install_steamcmd() {
 
 run_steamcmd() {
     "${STEAMCMD_DIR}/steamcmd.sh" "$@"
+}
+
+wine_healthcheck() {
+    timeout "${WINE_HEALTHCHECK_TIMEOUT_SECONDS}" \
+        xvfb-run --auto-servernum wine cmd /c exit >/dev/null 2>&1
+}
+
+ensure_wine_prefix_healthy() {
+    local init_status=0
+
+    if wine_healthcheck; then
+        return
+    fi
+
+    log "Wine prefix health check failed; rebuilding ${WINEPREFIX}."
+    rm -rf "${WINEPREFIX}"
+    install -d -m 0755 "${WINEPREFIX}"
+
+    init_status=0
+    timeout "${WINE_INIT_TIMEOUT_SECONDS}" \
+        xvfb-run --auto-servernum wineboot --init >/dev/null 2>&1 || init_status=$?
+
+    if [[ "${init_status}" -ne 0 ]] && [[ "${init_status}" -ne 124 ]]; then
+        log "ERROR: wineboot failed while rebuilding prefix (exit ${init_status})."
+        exit "${init_status}"
+    fi
+
+    if ! wine_healthcheck; then
+        log "ERROR: Wine prefix is still unhealthy after rebuild (kernel32.dll issue persists)."
+        exit 1
+    fi
+
+    log "Wine prefix rebuilt successfully."
 }
 
 update_server_files() {
@@ -348,6 +383,16 @@ main() {
         exit 1
     fi
 
+    if [[ ! "${WINE_HEALTHCHECK_TIMEOUT_SECONDS}" =~ ^[0-9]+$ ]] || (( WINE_HEALTHCHECK_TIMEOUT_SECONDS <= 0 )); then
+        log "ERROR: WINE_HEALTHCHECK_TIMEOUT_SECONDS must be a positive integer."
+        exit 1
+    fi
+
+    if [[ ! "${WINE_INIT_TIMEOUT_SECONDS}" =~ ^[0-9]+$ ]] || (( WINE_INIT_TIMEOUT_SECONDS <= 0 )); then
+        log "ERROR: WINE_INIT_TIMEOUT_SECONDS must be a positive integer."
+        exit 1
+    fi
+
     auto_restart_on_crash="$(normalize_boolean "${AUTO_RESTART_ON_CRASH}")"
     crash_restart_count=0
 
@@ -355,6 +400,7 @@ main() {
     trap handle_restart_signal USR1
 
     install_steamcmd
+    ensure_wine_prefix_healthy
     update_server_files
 
     while true; do
